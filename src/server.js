@@ -46,9 +46,40 @@ const syncDeviceLogs = async () => {
       if (error) console.error('User fetch error:', error.message);
       if (users && users.length > 0) {
         const user = users[0];
+
+        // 🟩 Skip updating admin users (always keep active)
+        if (user.role === 'admin') {
+          continue;
+        }
+
         if (user.status !== status) {
           await supabase.from('users').update({ status }).eq('id', user.id);
           console.log(`🔄 Updated ${user.user_name} → ${status}`);
+        }
+      }
+    }
+
+    // 🆕 Step added: mark users with no logs today as inactive (only non-admin)
+    const { data: allUsers, error: allUsersError } = await supabase.from('users').select('*');
+    if (allUsersError) console.error('User fetch error:', allUsersError.message);
+
+    if (allUsers && allUsers.length > 0) {
+      const loggedEmployees = Object.keys(employeeStatus);
+      for (const user of allUsers) {
+        if (user.role === 'admin') {
+          // 🟩 Admins are always active
+          if (user.status !== 'active') {
+            await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+            console.log(`👑 Admin ${user.user_name} forced to active`);
+          }
+          continue;
+        }
+
+        if (!loggedEmployees.includes(user.employee_id)) {
+          if (user.status !== 'inactive') {
+            await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id);
+            console.log(`⚫ No logs today → ${user.user_name} set to inactive`);
+          }
         }
       }
     }
