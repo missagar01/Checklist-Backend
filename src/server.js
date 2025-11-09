@@ -63,26 +63,58 @@ const syncDeviceLogs = async () => {
     const { data: allUsers, error: allUsersError } = await supabase.from('users').select('*');
     if (allUsersError) console.error('User fetch error:', allUsersError.message);
 
-    if (allUsers && allUsers.length > 0) {
-      const loggedEmployees = Object.keys(employeeStatus);
-      for (const user of allUsers) {
-        if (user.role === 'admin') {
-          // 🟩 Admins are always active
-          if (user.status !== 'active') {
-            await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
-            console.log(`👑 Admin ${user.user_name} forced to active`);
-          }
-          continue;
-        }
+    // if (allUsers && allUsers.length > 0) {
+    //   const loggedEmployees = Object.keys(employeeStatus);
+    //   for (const user of allUsers) {
+    //     if (user.role === 'admin') {
+    //       // 🟩 Admins are always active
+    //       if (user.status !== 'active') {
+    //         await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+    //         console.log(`👑 Admin ${user.user_name} forced to active`);
+    //       }
+    //       continue;
+    //     }
 
-        if (!loggedEmployees.includes(user.employee_id)) {
-          if (user.status !== 'inactive') {
-            await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id);
-            console.log(`⚫ No logs today → ${user.user_name} set to inactive`);
-          }
-        }
+    //     if (!loggedEmployees.includes(user.employee_id)) {
+    //       if (user.status !== 'inactive') {
+    //         await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id);
+    //         console.log(`⚫ No logs today → ${user.user_name} set to inactive`);
+    //       }
+    //     }
+    //   }
+    // }
+
+    if (allUsers && allUsers.length > 0) {
+  const loggedEmployees = Object.keys(employeeStatus);
+  for (const user of allUsers) {
+    // 🟩 Admins are always active
+    if (user.role === 'admin') {
+      if (user.status !== 'active') {
+        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+        console.log(`👑 Admin ${user.user_name} forced to active`);
+      }
+      continue;
+    }
+
+    // 🆕 If employee_id is NULL → also always active
+    if (!user.employee_id) {
+      if (user.status !== 'active') {
+        await supabase.from('users').update({ status: 'active' }).eq('id', user.id);
+        console.log(`🟩 No employee_id → ${user.user_name} forced to active`);
+      }
+      continue;
+    }
+
+    // 🔄 For others, mark inactive if not logged today
+    if (!loggedEmployees.includes(user.employee_id)) {
+      if (user.status !== 'inactive') {
+        await supabase.from('users').update({ status: 'inactive' }).eq('id', user.id);
+        console.log(`⚫ No logs today → ${user.user_name} set to inactive`);
       }
     }
+  }
+}
+
 
     console.log('✅ Device sync complete');
   } catch (error) {
